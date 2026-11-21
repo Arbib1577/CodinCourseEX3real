@@ -56,11 +56,50 @@ class GradesWindow(QMainWindow):
             self.table.setItem(i,2, QTableWidgetItem(str(self.corrected_grades[i])))
 
     def load_file(self):
-        pass
+        file_path, _ = QFileDialog.getOpenFileName(self, 'Select Grage File', "", 'CSV File (*.csv);;All Files(*)')
+        if not file_path:
+            return
+        self.selected_file=file_path
+        self.file_label.setText(file_path.split('/')[-1])
+
+        self.student_ids = []
+        self.original_grades=[]
+        self.corrected_grades =[]
+
+        with open(self.selected_file, 'r') as f:
+            lines = f.readlines()
+
+        for line in lines[1:]:
+            line=line.strip()
+            if line != '':
+                parts = line.split(',')
+                student_id = parts[0]
+                grade = int(parts[1])
+
+                self.student_ids.append(student_id)
+                self.original_grades.append(grade)
+                self.corrected_grades.append(grade)
+        self.update_table()
+
     def apply_bonus(self):
-        pass
+        text= self.bonus_input.text()
+        if text == '' or text == "-" or text == "/" or text == "N/A":
+            return
+        
+        bonus = int(text)
+        for i in range(len(self.original_grades)):
+            new_grade = self.original_grades[i] + bonus
+            if new_grade > 100:
+                new_grade = 100
+            if new_grade < 0:
+                new_grade= 0
+            self.corrected_grades[i] = new_grade
+        self.update_table()
+
+        
     def update_file(self):
         pass
+
     def open_about(self):
         if self.about_window is None:
             self.about_window = AboutWindow()
