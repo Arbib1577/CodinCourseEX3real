@@ -1,13 +1,26 @@
 import sys
-from PySide6.QtWidgets import QApplication, QMainWindow, QPushButton, QTableWidget, QTableWidgetItem, QLineEdit, QLabel, QFileDialog
-from PySide6.QtGui import QIntValidator
+from PySide6.QtCore import Qt
+from PySide6.QtWidgets import (
+    QApplication,
+    QComboBox,
+    QDialog,
+    QLabel,
+    QMainWindow,
+    QPushButton,
+    QTableWidget,
+    QTableWidgetItem,
+    QFileDialog,
+    QSpinBox
+)
+
 from About import AboutWindow
+
 
 class GradesWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle('Grades Manager')
-        self.setGeometry(250,120,560,620)
+        self.setGeometry(250, 120, 560, 620)
 
         self.student_ids = []
         self.original_grades = []
@@ -15,22 +28,29 @@ class GradesWindow(QMainWindow):
         self.selected_file = ''
 
         self.load_btn = QPushButton('Select Grades File', self)
-        self.load_btn.setGeometry(30,20,180,38)
+        self.load_btn.setGeometry(30, 20, 180, 38)
         self.load_btn.clicked.connect(self.load_file)
 
         self.file_label = QLabel('No file selected', self)
-        self.file_label.setGeometry(225,20,305,38)
+        self.file_label.setGeometry(225, 20, 305, 38)
 
-        self.bonus_label = QLabel('Bonus Points (Press Enter):', self)
-        self.bonus_label.setGeometry(30,75,220,35)
+        self.id_label = QLabel('Select Student ID:', self)
+        self.id_label.setGeometry(30, 72, 200, 35)
 
-        self.bonus_input = QLineEdit(self)
-        self.bonus_input.setGeometry(255,75,100,35)
-        self.bonus_input.setValidator(QIntValidator(-100,100))
-        self.bonus_input.returnPressed.connect(self.apply_bonus)
+        self.id_combo = QComboBox(self)
+        self.id_combo.setGeometry(255, 72, 160, 35)
+        self.id_combo.currentTextChanged.connect(self.reset_bonus)
 
-        self.table = QTableWidget(50,3, self)
-        self.table.setGeometry(30,130,500,400)
+        self.bonus_label = QLabel('Bonus Points:', self)
+        self.bonus_label.setGeometry(30, 120, 200, 35)
+
+        self.bonus_input = QSpinBox(self)
+        self.bonus_input.setGeometry(255, 120, 100, 35)
+        self.bonus_input.setRange(-100, 100)
+        self.bonus_input.valueChanged.connect(self.apply_bonus)
+
+        self.table = QTableWidget(50, 3, self)
+        self.table.setGeometry(30, 170, 500, 360)
         self.table.setHorizontalHeaderLabels(['ID', 'Original Grades', 'Corrected Grades'])
         self.table.setColumnWidth(0, 155)
         self.table.setColumnWidth(1, 155)
@@ -43,7 +63,7 @@ class GradesWindow(QMainWindow):
 
         self.about_btn = QPushButton('About', self)
         self.about_btn.setObjectName('about_btn')
-        self.about_btn.setGeometry(410,550,120,40)
+        self.about_btn.setGeometry(410, 550, 120, 40)
         self.about_btn.clicked.connect(self.open_about)
 
         self.about_window = None
@@ -79,26 +99,48 @@ class GradesWindow(QMainWindow):
                 self.student_ids.append(student_id)
                 self.original_grades.append(grade)
                 self.corrected_grades.append(grade)
+        self.id_combo.clear()
+        self.id_combo.addItems(self.student_ids)
         self.update_table()
+
+    def reset_bonus(self):
+        self.bonus_input.blockSignals(True)
+        self.bonus_input.setValue(0)
+        self.bonus_input.blockSignals(False)
 
     def apply_bonus(self):
-        text= self.bonus_input.text()
-        if text == '' or text == "-" or text == "/" or text == "N/A":
+        selected_id = self.id_combo.currentText()
+        if selected_id == '':
             return
-        
-        bonus = int(text)
-        for i in range(len(self.original_grades)):
-            new_grade = self.original_grades[i] + bonus
-            if new_grade > 100:
-                new_grade = 100
-            if new_grade < 0:
-                new_grade= 0
-            self.corrected_grades[i] = new_grade
-        self.update_table()
 
+        bonus = self.bonus_input.value()
+        for i in range(len(self.student_ids)):
+            if self.student_ids[i] == selected_id:
+                new_grade = self.original_grades[i] + bonus
+                if new_grade > 100:
+                    new_grade = 100
+                if new_grade < 0:
+                    new_grade = 0
+                self.corrected_grades[i] = new_grade
+                break
+
+        self.update_table()
         
     def update_file(self):
-        pass
+        if self.selected_file == '':
+            return
+
+        with open(self.selected_file, 'w') as f:
+            f.write('ID,Grade\n')
+            for i in range(len(self.student_ids)):
+                f.write(f'{self.student_ids[i]},{self.corrected_grades[i]}\n')
+
+        msg = QDialog(self)
+        msg.setWindowTitle('Success')
+        msg.setGeometry(400, 300, 260, 110)
+        lbl = QLabel('File updated successfully!', msg)
+        lbl.setGeometry(45, 35, 180, 30)
+        msg.exec()
 
     def open_about(self):
         if self.about_window is None:
